@@ -1,5 +1,5 @@
 use chrono::{DateTime, Local, Utc};
-use lambda_http::{run, service_fn, Body, Error, Request, Response};
+use lambda_http::{run, service_fn, Body, Error, Request, RequestExt, Response};
 
 use lazy_static::lazy_static;
 use serde::Deserialize;
@@ -79,20 +79,27 @@ impl PRs {
         Ok(builder.string().unwrap())
     }
 }
+
+#[derive(Deserialize, Debug)]
+struct PullRequestParams {
+    max_hour: u32,
+    key: String,
+}
+
 /// This is the main body for the function.
 /// Write your code inside it.
 /// There are some code example in the following URLs:
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
-    println!("start main:{:#?}", event);
-    // let (parts, body) = event.into_parts();
-    // let body = serde_json::from_slice(&body)?;
-    // let token = "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";
+    println!("start main:{:?}", event);
+    // event.query_string_parameters()
+    // let (_, body) = event.into_parts();
+    // let pr_params: PullRequestParams = serde_json::from_slice(&body)?;
+    // println!("pr_params:{:#?}", pr_params);
     let github_access_token = match std::env::var("GITHUB_ACCESS_TOKEN") {
         Ok(v) => v,
         Err(e) => panic!("Err: no config GITHUB_ACCESS_TOKEN variable: {}", e),
     };
-
     let slack_channel = match std::env::var("SLACK_NOTIFICATION_CHANNEL") {
         Ok(v) => v,
         Err(e) => panic!("Err: no config SLACK_NOTIFICATION_CHANNEL variable: {}", e),
@@ -108,7 +115,11 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
         .send()
         .await?
         .json::<Vec<MyPullRequest>>()
-        .await?;
+        .await
+        .map_err(|e| {
+            println!("Err: can not get pull request from github {}", e);
+            e
+        })?;
 
     let tickets = PRs::filter(1, list_prs);
     let now: DateTime<Utc> = Utc::now();

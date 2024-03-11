@@ -20,3 +20,5 @@ cargo lambda deploy --iam-role arn:aws:iam::747194874562:role/rust-role --enable
 
 
 Setup 2 variable `GITHUB_ACCESS_TOKEN` and `SLACK_NOTIFICATION_CHANNEL`
+
+Lambda URL Trigger: https://2tajlxmufgyyohlxg5vb67cjoy0zekcn.lambda-url.ap-northeast-1.on.aws/
