@@ -18,9 +18,10 @@ struct User {
 struct MyPullRequest {
     id: u64,
     title: String,
+    created_at: chrono::DateTime<chrono::Utc>,
     updated_at: chrono::DateTime<chrono::Utc>,
     user: User,
-    url: String,
+    html_url: String,
 }
 
 lazy_static! {
@@ -30,6 +31,8 @@ lazy_static! {
         m.insert("dustinmfv", "U02J4N7C0TE");
         m.insert("pirlomnfw", "U03H8R4HF1C");
         m.insert("frankymfv", "U03ECBB3FGR");
+        m.insert("nicholasmfv", "U03QJBJ951V");
+        m.insert("leonmfv", "U03ALAZSSRE");
         m
     };
 }
@@ -47,11 +50,15 @@ impl PRs {
         let now: DateTime<Utc> = Utc::now();
         for pr in list_prs {
             // println!("id:{:#?}, {:#?}, {:#?}", pr.id, pr.title, pr.updated_at);
-            let delta = now.signed_duration_since(pr.updated_at);
+            let delta = now.signed_duration_since(pr.created_at);
             if delta.num_days() >= day && pr.user.r#type == "User" {
                 println!(
-                    "<@{}>: _{}_ last updated: {} - <{}| see more>\n ",
-                    pr.user.id, pr.title, pr.updated_at, pr.url
+                    "<@{}>: *{}* days - _{}_ last updated: {} - <{}| see more>\n ",
+                    pr.user.id,
+                    delta.num_days(),
+                    pr.title,
+                    pr.updated_at,
+                    pr.html_url
                 );
 
                 filter_prs.push(pr);
@@ -61,17 +68,19 @@ impl PRs {
     }
     fn convert_slack_data(&self) -> Result<String, anyhow::Error> {
         let mut builder = Builder::default();
-
+        let now: DateTime<Utc> = Utc::now();
         for pr in &self.prs {
             let local_updated_at: DateTime<Local> = DateTime::from(pr.updated_at);
+            let delta = now.signed_duration_since(pr.created_at);
             let tk = format!(
-                "<@{}>: _{}_ last updated: *{}* - <{}| see more>\n ",
+                "<@{}>: *{}* days -  _{}_ last updated: *{}* - <{}| see more>\n ",
                 MEMBERS
                     .get(pr.user.login.as_str())
                     .unwrap_or(&pr.user.login.as_str()),
+                delta.num_days(),
                 pr.title,
                 local_updated_at.format("%d/%m/%Y - %H:%M VNT"),
-                pr.url
+                pr.html_url
             );
 
             builder.append(tk);
@@ -92,6 +101,11 @@ struct PullRequestParams {
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     println!("start main:{:?}", event);
+    let slack_channel = match std::env::var("SLACK_NOTIFICATION_CHANNEL") {
+        Ok(v) => v,
+        Err(e) => panic!("Err: no config SLACK_NOTIFICATION_CHANNEL variable: {}", e),
+    };
+    println!("slack channel:{}", slack_channel);
     // event.query_string_parameters()
     // let (_, body) = event.into_parts();
     // let pr_params: PullRequestParams = serde_json::from_slice(&body)?;
@@ -99,10 +113,6 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
     let github_access_token = match std::env::var("GITHUB_ACCESS_TOKEN") {
         Ok(v) => v,
         Err(e) => panic!("Err: no config GITHUB_ACCESS_TOKEN variable: {}", e),
-    };
-    let slack_channel = match std::env::var("SLACK_NOTIFICATION_CHANNEL") {
-        Ok(v) => v,
-        Err(e) => panic!("Err: no config SLACK_NOTIFICATION_CHANNEL variable: {}", e),
     };
 
     let client = reqwest::Client::new();
