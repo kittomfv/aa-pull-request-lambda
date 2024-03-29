@@ -35,7 +35,7 @@ lazy_static! {
         m.insert("pirlomnfw", "U03H8R4HF1C");
         m.insert("frankymfv", "U03ECBB3FGR");
         m.insert("ThetaMFV", "U02QSMJ1BRQ");
-        m.insert("leonmfv", "U03ALAZSSRE");
+        m.insert("leonhandl3r", "U03ALAZSSRE");
         m.insert("nicholas", "U03QJBJ951V");
         m.insert("augustmfv", "U0486QG6A9W");
         m.insert("Antom-Nguyen", "U036V63ML5Q");
